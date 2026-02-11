@@ -123,11 +123,13 @@ describe("TaskBoard", () => {
     render(<TaskBoard tasks={tasks} />);
 
     const reviewHeading = screen.getByRole("heading", { name: "Review" });
-    const reviewColumn = reviewHeading.closest(".kanban-column");
+    const reviewColumn = reviewHeading.closest(".kanban-column") as HTMLElement | null;
     expect(reviewColumn).toBeTruthy();
     if (!reviewColumn) return;
 
-    const header = reviewColumn.querySelector(".column-header");
+    const header = reviewColumn.querySelector(
+      ".column-header",
+    ) as HTMLElement | null;
     expect(header).toBeTruthy();
     if (!header) return;
 
@@ -174,7 +176,7 @@ describe("TaskBoard", () => {
 
     const dropTarget = screen
       .getByRole("heading", { name: "Done" })
-      .closest(".kanban-column");
+      .closest(".kanban-column") as HTMLElement | null;
     expect(dropTarget).toBeTruthy();
     if (!dropTarget) return;
 
