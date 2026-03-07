@@ -462,10 +462,8 @@ export default function EditBoardPage() {
     },
   });
 
-  useEffect(() => {
-    if (!governorPolicyQuery.data) return;
-    setGovernorPolicyDraft(governorPolicyQuery.data);
-  }, [governorPolicyQuery.data]);
+  const currentGovernorPolicy =
+    governorPolicyDraft ?? governorPolicyQuery.data ?? undefined;
 
   const saveGovernorPolicyMutation = useMutation({
     mutationFn: async (policy: Partial<AutoHeartbeatGovernorPolicy>) => {
@@ -1233,25 +1231,25 @@ export default function EditBoardPage() {
                 <p className="text-sm text-red-500">{governorPolicyError}</p>
               ) : null}
 
-              {governorPolicyDraft ? (
+              {currentGovernorPolicy ? (
                 <div className="space-y-4 rounded-lg border border-slate-200 px-4 py-4">
                   <div className="flex items-start gap-3">
                     <button
                       type="button"
                       role="switch"
-                      aria-checked={governorPolicyDraft.enabled}
+                      aria-checked={currentGovernorPolicy.enabled}
                       aria-label="Enable auto heartbeat governor"
                       onClick={() => {
                         setGovernorPolicySaveSuccess(null);
                         setGovernorPolicyError(null);
                         setGovernorPolicyDraft({
-                          ...governorPolicyDraft,
-                          enabled: !governorPolicyDraft.enabled,
+                          ...currentGovernorPolicy,
+                          enabled: !currentGovernorPolicy.enabled,
                         });
                       }}
                       disabled={isLoading || saveGovernorPolicyMutation.isPending}
                       className={`mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition ${
-                        governorPolicyDraft.enabled
+                        currentGovernorPolicy.enabled
                           ? "border-emerald-600 bg-emerald-600"
                           : "border-slate-300 bg-slate-200"
                       } ${
@@ -1262,7 +1260,7 @@ export default function EditBoardPage() {
                     >
                       <span
                         className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition ${
-                          governorPolicyDraft.enabled
+                          currentGovernorPolicy.enabled
                             ? "translate-x-5"
                             : "translate-x-0.5"
                         }`}
@@ -1288,11 +1286,11 @@ export default function EditBoardPage() {
                         type="number"
                         min={30}
                         step={1}
-                        value={governorPolicyDraft.run_interval_seconds}
+                        value={currentGovernorPolicy.run_interval_seconds}
                         onChange={(event) => {
                           const next = Number.parseInt(event.target.value, 10);
                           setGovernorPolicyDraft({
-                            ...governorPolicyDraft,
+                            ...currentGovernorPolicy,
                             run_interval_seconds: Number.isNaN(next)
                               ? 300
                               : Math.max(30, next),
@@ -1310,10 +1308,10 @@ export default function EditBoardPage() {
                         Activity trigger type
                       </label>
                       <Select
-                        value={governorPolicyDraft.activity_trigger_type}
+                        value={currentGovernorPolicy.activity_trigger_type}
                         onValueChange={(value) => {
                           setGovernorPolicyDraft({
-                            ...governorPolicyDraft,
+                            ...currentGovernorPolicy,
                             activity_trigger_type: value as GovernorActivityTriggerType,
                           });
                         }}
@@ -1334,14 +1332,14 @@ export default function EditBoardPage() {
                         Ladder values
                       </label>
                       <Input
-                        value={governorPolicyDraft.ladder.join(", ")}
+                        value={currentGovernorPolicy.ladder.join(", ")}
                         onChange={(event) => {
                           const ladder = event.target.value
                             .split(",")
                             .map((part) => part.trim())
                             .filter(Boolean);
                           setGovernorPolicyDraft({
-                            ...governorPolicyDraft,
+                            ...currentGovernorPolicy,
                             ladder,
                           });
                         }}
@@ -1359,10 +1357,10 @@ export default function EditBoardPage() {
                         Lead cap
                       </label>
                       <Input
-                        value={governorPolicyDraft.lead_cap_every}
+                        value={currentGovernorPolicy.lead_cap_every}
                         onChange={(event) =>
                           setGovernorPolicyDraft({
-                            ...governorPolicyDraft,
+                            ...currentGovernorPolicy,
                             lead_cap_every: event.target.value,
                           })
                         }
@@ -1379,24 +1377,24 @@ export default function EditBoardPage() {
                     <Button
                       type="button"
                       onClick={() => {
-                        if (!governorPolicyDraft) return;
+                        if (!currentGovernorPolicy) return;
                         setGovernorPolicyError(null);
                         setGovernorPolicySaveSuccess(null);
                         saveGovernorPolicyMutation.mutate({
-                          enabled: governorPolicyDraft.enabled,
+                          enabled: currentGovernorPolicy.enabled,
                           run_interval_seconds:
-                            governorPolicyDraft.run_interval_seconds,
-                          ladder: governorPolicyDraft.ladder,
-                          lead_cap_every: governorPolicyDraft.lead_cap_every,
+                            currentGovernorPolicy.run_interval_seconds,
+                          ladder: currentGovernorPolicy.ladder,
+                          lead_cap_every: currentGovernorPolicy.lead_cap_every,
                           activity_trigger_type:
-                            governorPolicyDraft.activity_trigger_type,
+                            currentGovernorPolicy.activity_trigger_type,
                         });
                       }}
                       disabled={
                         isLoading ||
                         saveGovernorPolicyMutation.isPending ||
-                        !governorPolicyDraft.ladder.length ||
-                        !governorPolicyDraft.lead_cap_every.trim()
+                        !currentGovernorPolicy.ladder.length ||
+                        !currentGovernorPolicy.lead_cap_every.trim()
                       }
                     >
                       {saveGovernorPolicyMutation.isPending ? "Saving…" : "Save governor policy"}
