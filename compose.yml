@@ -61,6 +61,8 @@ services:
       RQ_REDIS_URL: redis://redis:6379/0
       CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
       CLERK_ALLOWED_EMAILS: ${CLERK_ALLOWED_EMAILS}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
