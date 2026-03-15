@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     clerk_api_url: str = "https://api.clerk.com"
     clerk_verify_iat: bool = True
     clerk_leeway: float = 10.0
+    # Comma-separated list of emails allowed to sign in via Clerk.
+    # Leave empty to allow any authenticated Clerk user.
+    clerk_allowed_emails: str = ""
 
     cors_origins: str = ""
     base_url: str = ""

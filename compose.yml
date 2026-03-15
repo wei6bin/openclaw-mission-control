@@ -27,6 +27,20 @@ services:
       timeout: 3s
       retries: 5
 
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
   backend:
     build:
       # Build from repo root so the backend image can include repo-level assets
@@ -45,13 +59,14 @@ services:
       LOCAL_AUTH_TOKEN: ${LOCAL_AUTH_TOKEN}
       BASE_URL: ${BASE_URL:-http://localhost:8000}
       RQ_REDIS_URL: redis://redis:6379/0
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
 
   frontend:
     build:
@@ -59,6 +74,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-auto}
         NEXT_PUBLIC_AUTH_MODE: ${AUTH_MODE}
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     # Optional, user-managed env file.
     # IMPORTANT: do NOT load `.env.example` here because it contains non-empty
     # placeholder Clerk keys, which can accidentally flip Clerk "on".
@@ -68,10 +84,12 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-auto}
       NEXT_PUBLIC_AUTH_MODE: ${AUTH_MODE}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
     depends_on:
       - backend
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "127.0.0.1:${FRONTEND_PORT:-3000}:3000"
     develop:
       watch:
         # Rebuild frontend image when UI source or build config changes.
@@ -116,3 +134,5 @@ services:
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:

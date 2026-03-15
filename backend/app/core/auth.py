@@ -484,6 +484,10 @@ async def get_auth_context(
         clerk_user_id=clerk_user_id,
         claims=claims,
     )
+    allowed = [e.strip().lower() for e in settings.clerk_allowed_emails.split(",") if e.strip()]
+    if allowed and (not user.email or user.email.lower() not in allowed):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+
     from app.services.organizations import ensure_member_for_user
 
     await ensure_member_for_user(session, user)

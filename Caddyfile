@@ -1,0 +1,29 @@
+{
+    admin off
+}
+
+clawd.fhircraft.cc {
+    tls internal
+
+    # Backend API and health routes
+    handle /api/v1/* {
+        reverse_proxy backend:8000
+    }
+    handle /health* {
+        reverse_proxy backend:8000
+    }
+    handle /readyz* {
+        reverse_proxy backend:8000
+    }
+    handle /docs* {
+        reverse_proxy backend:8000
+    }
+    handle /openapi.json {
+        reverse_proxy backend:8000
+    }
+
+    # Everything else → frontend
+    handle {
+        reverse_proxy frontend:3000
+    }
+}
