@@ -486,7 +486,10 @@ async def get_auth_context(
     )
     allowed = [e.strip().lower() for e in settings.clerk_allowed_emails.split(",") if e.strip()]
     if allowed and (not user.email or user.email.lower() not in allowed):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+        from app.services.organizations import _find_pending_invite
+        invite = await _find_pending_invite(session, user.email) if user.email else None
+        if invite is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
 
     from app.services.organizations import ensure_member_for_user
 
