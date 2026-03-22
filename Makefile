@@ -83,6 +83,10 @@ test: backend-test frontend-test ## Run tests
 backend-test: ## Backend tests (pytest)
 	cd $(BACKEND_DIR) && uv run pytest
 
+.PHONY: backend-integration-test
+backend-integration-test: ## Backend integration tests (API + DB)
+	cd $(BACKEND_DIR) && uv run pytest tests/test_integration_api_db.py -v
+
 .PHONY: backend-coverage
 backend-coverage: ## Backend tests with coverage gate (scoped 100% stmt+branch on selected modules)
 	# Policy: enforce 100% coverage only for the explicitly scoped, unit-testable backend modules.
