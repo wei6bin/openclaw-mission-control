@@ -1,0 +1,36 @@
+# CODEOWNERS - Define who owns what in this repository
+# https://help.github.com/articles/about-codeowners/
+
+# Default owner for everything not matched below
+* @wei6bin
+
+# CI/CD and DevOps
+.github/workflows/ @wei6bin
+docs/CI-CD.md @wei6bin
+docs/DEPLOYMENT.md @wei6bin
+docs/PIPELINE-MONITORING.md @wei6bin
+docs/CACHE-CONFIG.md @wei6bin
+docs/BRANCH-PROTECTION.md @wei6bin
+docs/WORKFLOW-DISPATCH.md @wei6bin
+docs/SECRETS-MANAGEMENT.md @wei6bin
+
+# Backend
+/backend/ @wei6bin
+
+# Frontend
+/frontend/ @wei6bin
+
+# Documentation
+/docs/ @wei6bin
+
+# Scripts
+/scripts/ @wei6bin
+*.sh @wei6bin
+
+# Configuration files
+/Makefile @wei6bin
+/docker-compose* @wei6bin
+/install.sh @wei6bin
+
+# Installer
+/*.sh @wei6bin
