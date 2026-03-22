@@ -12,6 +12,8 @@ concurrency:
 
 permissions:
   contents: read
+  security-events: write
+  actions: read
 
 jobs:
   check:
@@ -135,10 +137,124 @@ jobs:
             backend/coverage.xml
             frontend/coverage/**
 
+  # Security: SAST scanning with CodeQL
+  security-sast:
+    name: Security SAST (CodeQL)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python, javascript
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:python,javascript"
+          upload: true
+
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-sast-reports
+          path: |
+            ./results/*.sarif
+          if-no-files-found: ignore
+
+  # Security: Dependency vulnerability scanning
+  security-deps:
+    name: Security Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Python dependency scanning
+      - name: Install backend dependencies
+        run: make backend-sync
+
+      - name: Audit Python dependencies
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/uv.lock --format=json > pip-audit-report.json || true
+          pip-audit -r backend/uv.lock || echo "Python dependencies scanned"
+        continue-on-error: true
+
+      - name: Upload Python Audit Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-deps-python
+          path: |
+            pip-audit-report.json
+          if-no-files-found: ignore
+
+      # Node dependency scanning
+      - name: Install frontend dependencies
+        run: make frontend-sync
+
+      - name: Audit Node dependencies
+        run: |
+          cd frontend
+          npm audit --audit-level=moderate --json > npm-audit-report.json || true
+        continue-on-error: true
+
+      - name: Upload Node Audit Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-deps-node
+          path: |
+            frontend/npm-audit-report.json
+          if-no-files-found: ignore
+
+      - name: Check for critical vulnerabilities
+        run: |
+          # Check if there are critical vulnerabilities
+          if [ -f pip-audit-report.json ]; then
+            CRITICAL_PIP=$(jq -r '.vulnerabilities | to_entries | .[] | select(.value[].severity == "critical") | .key' pip-audit-report.json 2>/dev/null | wc -l)
+            if [ "$CRITICAL_PIP" -gt 0 ]; then
+              echo "Found $CRITICAL_PIP critical Python vulnerabilities"
+              cat pip-audit-report.json
+              exit 1
+            fi
+          fi
+          
+          if [ -f frontend/npm-audit-report.json ]; then
+            CRITICAL_NPM=$(jq -r '.vulnerabilities | to_entries | .[] | select(.value.severity == "critical") | .key' frontend/npm-audit-report.json 2>/dev/null | wc -l)
+            if [ "$CRITICAL_NPM" -gt 0 ]; then
+              echo "Found $CRITICAL_NPM critical Node vulnerabilities"
+              exit 1
+            fi
+          fi
+          
+          echo "No critical vulnerabilities found"
+
   installer:
     name: Installer (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    needs: [check]
+    needs: [check, security-sast, security-deps]
     strategy:
       fail-fast: false
       matrix:
