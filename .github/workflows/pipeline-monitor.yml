@@ -1,0 +1,170 @@
+name: Pipeline Monitor
+
+on:
+  # Run on workflow completion
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  # Allow manual trigger for metrics
+  workflow_dispatch:
+    inputs:
+      report_type:
+        description: 'Report type'
+        required: true
+        default: 'summary'
+        type: choice
+        options:
+          - summary
+          - failures
+          - trends
+
+# Also run daily for health check
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+
+jobs:
+  # Notify on workflow failures
+  notify-failure:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get workflow info
+        id: workflow
+        run: |
+          echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+          echo "workflow_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
+          echo "run_number=${{ github.event.workflow_run.run_number }}" >> $GITHUB_OUTPUT
+          echo "conclusion=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
+
+      - name: Create failure message
+        id: message
+        run: |
+          MSG="🔴 Pipeline Failure Alert"
+          MSG+="\n\n**Workflow:** ${{ steps.workflow.outputs.workflow_name }}"
+          MSG+="\n**Run:** #${{ steps.workflow.outputs.run_number }}"
+          MSG+="\n**Conclusion:** ${{ steps.workflow.outputs.conclusion }}"
+          MSG+="\n**URL:** ${{ github.event.workflow_run.html_url }}"
+          echo "msg=$MSG" >> $GITHUB_OUTPUT
+
+      - name: Show failure notification
+        run: |
+          echo '${{ steps.message.outputs.msg }}'
+          echo ""
+
+      # TODO: Add Slack/email integration
+      # - name: Send Slack notification
+      #   uses: 8398a7/action-slack@v3
+      #   with:
+      #     status: failure
+      #     fields: workflow,run_number,conclusion
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Generate pipeline health metrics
+  health-metrics:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get recent workflow runs
+        id: runs
+        run: |
+          # Get last 30 workflow runs
+          WORKFLOW_RUNS=$(gh api repos/${{ github.repository }}/actions/runs \
+            --paginate \
+            -F per_page=30 \
+            -f status=completed \
+            -F event=push \
+            --jq '.workflow_runs | length')
+          
+          # Calculate success rate
+          TOTAL=$(gh api repos/${{ github.repository }}/actions/runs \
+            --paginate \
+            -F per_page=30 \
+            -f status=completed \
+            -f event=push \
+            --jq '.workflow_runs | length')
+          
+          SUCCESS=$(gh api repos/${{ github.repository }}/actions/runs \
+            --paginate \
+            -F per_page=30 \
+            -f status=completed \
+            -f event=push \
+            --jq '.workflow_runs | map(select(.conclusion == "success")) | length')
+          
+          if [ "$TOTAL" -gt 0 ]; then
+            SUCCESS_RATE=$((SUCCESS * 100 / TOTAL))
+          else
+            SUCCESS_RATE=0
+          fi
+          
+          echo "total_runs=$TOTAL" >> $GITHUB_OUTPUT
+          echo "successful_runs=$SUCCESS" >> $GITHUB_OUTPUT
+          echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
+
+      - name: Calculate average duration
+        id: duration
+        run: |
+          # Get average duration from recent runs
+          AVG_DURATION=$(gh api repos/${{ github.repository }}/actions/runs \
+            --paginate \
+            -F per_page=10 \
+            -f status=completed \
+            -f event=push \
+            --jq '.workflow_runs | map(.run_started_at) as $starts | 
+                  [.workflow_runs | map(.updated_at) | to_entries[] | 
+                  (.value | fromdateiso8601) - ($starts[.key] | fromdateiso8601)] | 
+                  add / length | floor')
+          
+          echo "avg_duration_minutes=$AVG_DURATION" >> $GITHUB_OUTPUT
+
+      - name: Generate health report
+        run: |
+          echo "## Pipeline Health Report"
+          echo ""
+          echo "**Period:** Last 30 workflow runs"
+          echo ""
+          echo "| Metric | Value |"
+          echo "|--------|-------|"
+          echo "| Total Runs | ${{ steps.runs.outputs.total_runs }} |"
+          echo "| Successful | ${{ steps.runs.outputs.successful_runs }} |"
+          echo "| Success Rate | ${{ steps.runs.outputs.success_rate }}% |"
+          echo "| Avg Duration | ~${{ steps.duration.outputs.avg_duration_minutes }} min |"
+          echo ""
+          echo "---"
+          echo "Generated: $(date -u +%Y-%m-%dT%H:%MZ)"
+
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-metrics
+          path: |
+            metrics.json
+          if-no-files-found: ignore
+
+  # Daily health check
+  daily-health-check:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check recent workflow status
+        run: |
+          # Get last workflow run
+          LAST_RUN=$(gh run list --workflow=ci.yml --limit=1 --json status,conclusion -q '.[0]')
+          STATUS=$(echo $LAST_RUN | jq -r '.status')
+          CONCLUSION=$(echo $LAST_RUN | jq -r '.conclusion // "unknown"')
+          
+          echo "Last CI run: status=$STATUS, conclusion=$CONCLUSION"
+          
+          if [ "$STATUS" == "completed" ] && [ "$CONCLUSION" != "success" ]; then
+            echo "⚠️ Last CI run failed! Needs attention."
+            exit 1
+          elif [ "$STATUS" != "completed" ]; then
+            echo "ℹ️ CI currently running..."
+          else
+            echo "✅ CI passing"
+          fi
