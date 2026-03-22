@@ -1,0 +1,77 @@
+# Dependabot configuration for automated dependency updates
+# https://docs.github.com/en/code-security/dependabot
+
+version: 2
+updates:
+  # Enable Dependabot for Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "pip"
+    labels:
+      - "dependencies"
+      - "python"
+    # Group minor and patch updates
+    versioning-strategy: increase
+    # Reviewers for PRs
+    reviewers:
+      - "wei6bin"
+    # Assignee
+    assignees:
+      - "wei6bin"
+
+  # Enable Dependabot for Node.js dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "npm"
+    labels:
+      - "dependencies"
+      - "javascript"
+    # Group minor and patch updates
+    versioning-strategy: increase
+    # Reviewers for PRs
+    reviewers:
+      - "wei6bin"
+    # Assignee
+    assignees:
+      - "wei6bin"
+
+  # Enable Dependabot for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    # Reviewers for PRs
+    reviewers:
+      - "wei6bin"
+    # Assignee
+    assignees:
+      - "wei6bin"
+
+# Security updates configuration
+# https://docs.github.com/en/code-security/dependabot/dependabot-security-updates
+dependabot:
+  # Enable security updates
+  enabled: true
